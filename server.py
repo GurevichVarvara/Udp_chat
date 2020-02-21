@@ -2,6 +2,9 @@ import socket
 import threading
 import queue
 
+HEADER_SIZE = 8
+PACKAGE_SIZE = 10
+
 def receive_message(socket, received_message_queue):
     full_message = ''
     is_new_message = True
@@ -51,8 +54,5 @@ def run_server(address, port):
 if __name__ == '__main__':
     UDP_SERVER_IP_ADDRESS = '127.0.0.1'
     UDP_SERVER_PORT = 5000
-
-    HEADER_SIZE = 8
-    PACKAGE_SIZE = 10
 
     run_server(UDP_SERVER_IP_ADDRESS, UDP_SERVER_PORT)
