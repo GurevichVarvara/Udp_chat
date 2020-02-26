@@ -67,8 +67,9 @@ def run_server(address, port):
     threading.Thread(target=receive_message, args=(server_socket, received_message_queue, receiving_status_message_queue)).start()
 
     user_names = {}
-    rooms = {}
+    user_addresses = {}
     private_chats = {}
+    rooms = {}
     user_chat = {}
 
     while True:
@@ -82,29 +83,37 @@ def run_server(address, port):
         	# if new user
         	if address_str not in user_names.values():
         		if message not in user_names.keys():
-        			user_names.update({message: address_str})
+        			user_names.update({message: address})
+        			user_addresses.update({address_str: message})
         			send_message(server_socket, 'valid', receiving_status_message_queue, address)
+
+        			print(user_names)
+        			print(user_addresses)
         		else:
         			send_message(server_socket, 'not valid', receiving_status_message_queue, address)
 
         	# if existing user is not in any chats
-        	elif address_str not in user_chat.keys():
+        	elif address_str not in user_chat.keys() and user_names[address_str] not in private_chats.keys():
         		try:
-        			chat_type, chat_name = int(message.split(':')[0]), message.split(':')[1]
+        			chat_type = int(message.split(':')[0]) 
+        			chat_name = message.split(':')[1]
 
         			if chat_type == 1:
         				if chat_name not in rooms.keys():
         					rooms[chat_name] = []
         					
-        				rooms[chat_name].append(address_str)
+        				rooms[chat_name].append(address)
         				user_chat[address_str] = chat_name
         				send_message(server_socket, 'valid', receiving_status_message_queue, address)
 
-        				print(rooms)
-        				print(user_chat)
+        				print('rooms', rooms)
+        				#print(user_chat)
+        			
         			elif chat_name == 2:
-        				if chat_name in user_names:
-        					print('ok')
+        				if chat_name in user_names and chat_name not in private_chats.keys():
+        					private_chats[chat_name] = user_names[address_str]
+        					private_chats[user_names[address_str]] = chat_name
+        					
         		
         		except Exception as e:
         			send_message(server_socket, 'not valid', receiving_status_message_queue, address)
