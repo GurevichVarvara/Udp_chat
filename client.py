@@ -60,14 +60,7 @@ def receive_message(socket, received_message_queue, receiving_status_message_que
 			socket.send(bytes(' ' * HEADER_SIZE + str(len(full_message)), 'utf-8'))
 
 
-def run_client(server_address):
-	client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	client_socket.connect(server_address)
-
-	received_message_queue = queue.Queue()
-	receiving_status_message_queue = queue.Queue()
-	threading.Thread(target=receive_message, args=(client_socket, received_message_queue, receiving_status_message_queue, server_address)).start()
-
+def choose_name(client_socket, received_message_queue, receiving_status_message_queue, server_address):
 	name = input('Please type your name: ')
 	send_message(client_socket, name, receiving_status_message_queue)
 
@@ -76,13 +69,46 @@ def run_client(server_address):
 		if not received_message_queue.empty():
 			message = received_message_queue.get()
 			if message == 'valid':
-				is_name_valid = True
+				print('\nHello, ' + name + '!')
 				break
 			elif message == 'not valid':
-				print('This name already exists.')
+				print('\nThis name already exists.')
 				name = input('Please type your name: ')
+				send_message(client_socket, name, receiving_status_message_queue)
 
-	print('Hello, ' + name + '!')
+	return name
+
+def choose_chat(client_socket, received_message_queue, receiving_status_message_queue, server_address):
+	print('\nIf you like to join room - enter 1:[name of room] (ex: 1:first lab discussion)\nIf you like to communicate in person - enter 2:[user name] (ex: 2:var)')
+	chat = input('Please type chat you like to join: ')
+	send_message(client_socket, chat, receiving_status_message_queue)
+
+	# get the answer from server is typed chat parameters valid
+	while True:
+		if not received_message_queue.empty():
+			message = received_message_queue.get()
+			if message == 'valid':
+				print('\nYou are in chat.')
+			elif message == 'not valid':
+				print('\nSomething went wrong. Please try again.')
+				chat = input('Please type chat you like to join: ')
+				send_message(client_socket, chat, receiving_status_message_queue)
+
+
+
+def run_client(server_address):
+	client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	client_socket.connect(server_address)
+
+	received_message_queue = queue.Queue()
+	receiving_status_message_queue = queue.Queue()
+	threading.Thread(target=receive_message, args=(client_socket, received_message_queue, receiving_status_message_queue, server_address)).start()
+
+	name = choose_name(client_socket, received_message_queue, receiving_status_message_queue, server_address)
+	
+	choose_chat(client_socket, received_message_queue, receiving_status_message_queue, server_address)
+
+		
 
 
 if __name__ == '__main__':

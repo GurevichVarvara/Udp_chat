@@ -50,7 +50,7 @@ def receive_message(socket, received_message_queue, receiving_status_message_que
         	socket.sendto(bytes(' ' * HEADER_SIZE + 'sent', 'utf-8'), address)
 
         	# add data from client to queue
-        	received_message_queue.put((address, full_message))
+        	received_message_queue.put((address, full_message[HEADER_SIZE:]))
         	is_new_message = True
         	full_message = ''
         else:
@@ -66,27 +66,49 @@ def run_server(address, port):
     receiving_status_message_queue = queue.Queue()
     threading.Thread(target=receive_message, args=(server_socket, received_message_queue, receiving_status_message_queue)).start()
 
-    user_addresses = set()
-    names = set()
     user_names = {}
+    rooms = {}
     private_chats = {}
+    user_chat = {}
 
     while True:
         while not received_message_queue.empty():
-            address, message = received_message_queue.queue[0][0], received_message_queue.queue[0][1]
-            received_message_queue.get()
+        	message_from_queue = received_message_queue.get()
+        	address, message = message_from_queue[0], message_from_queue[1]
 
-            address_str = str(address[0]) + ':' + str(address[1])
-            print('Message from ' + address_str + ': ' + message)
-            
-            if address_str not in user_addresses:
-                user_addresses.add(address_str)
-                
-                if message not in names:
-                    names.add(message)
-                    send_message(server_socket, 'valid', receiving_status_message_queue, address)
-                else:
-                    send_message(server_socket, 'not valid', receiving_status_message_queue, address)
+        	address_str = str(address[0]) + ':' + str(address[1])
+        	print('Message from ' + address_str + ': ' + message)
+        	
+        	# if new user
+        	if address_str not in user_names.values():
+        		if message not in user_names.keys():
+        			user_names.update({message: address_str})
+        			send_message(server_socket, 'valid', receiving_status_message_queue, address)
+        		else:
+        			send_message(server_socket, 'not valid', receiving_status_message_queue, address)
+
+        	# if existing user is not in any chats
+        	elif address_str not in user_chat.keys():
+        		try:
+        			chat_type, chat_name = int(message.split(':')[0]), message.split(':')[1]
+
+        			if chat_type == 1:
+        				if chat_name not in rooms.keys():
+        					rooms[chat_name] = []
+        					
+        				rooms[chat_name].append(address_str)
+        				user_chat[address_str] = chat_name
+        				send_message(server_socket, 'valid', receiving_status_message_queue, address)
+
+        				print(rooms)
+        				print(user_chat)
+        			elif chat_name == 2:
+        				if chat_name in user_names:
+        					print('ok')
+        		
+        		except Exception as e:
+        			send_message(server_socket, 'not valid', receiving_status_message_queue, address)
+
 
 
 if __name__ == '__main__':
