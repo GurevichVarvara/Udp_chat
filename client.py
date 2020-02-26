@@ -1,6 +1,7 @@
 import socket
 import threading
 import queue
+from threading import Timer
 
 HEADER_SIZE = 8
 PACKAGE_SIZE = 30
@@ -15,6 +16,7 @@ def send_message(socket, message, receiving_status_message_queue):
 
 			if message == 'sent':
 				return True
+
 			else:
 				current_index_of_message = message
 				socket.send(bytes(message_to_send[int(current_index_of_message):], 'utf-8'))
@@ -68,9 +70,11 @@ def choose_name(client_socket, received_message_queue, receiving_status_message_
 	while True:
 		if not received_message_queue.empty():
 			message = received_message_queue.get()
+
 			if message == 'valid':
 				print('\nHello, ' + name + '!')
 				break
+
 			elif message == 'not valid':
 				print('\nThis name already exists.')
 				name = input('Please type your name: ')
@@ -87,8 +91,14 @@ def choose_chat(client_socket, received_message_queue, receiving_status_message_
 	while True:
 		if not received_message_queue.empty():
 			message = received_message_queue.get()
-			if message == 'valid':
-				print('\nYou are in chat.')
+
+			if message != 'not valid' and message != 'You are waiting for another side connection':
+				print('\n' + message)
+				return True
+
+			elif message == 'You are waiting for another side connection':
+				print('You are waiting for another side connection')
+
 			elif message == 'not valid':
 				print('\nSomething went wrong. Please try again.')
 				chat = input('Please type chat you like to join: ')
@@ -105,10 +115,8 @@ def run_client(server_address):
 	threading.Thread(target=receive_message, args=(client_socket, received_message_queue, receiving_status_message_queue, server_address)).start()
 
 	name = choose_name(client_socket, received_message_queue, receiving_status_message_queue, server_address)
-	
-	choose_chat(client_socket, received_message_queue, receiving_status_message_queue, server_address)
 
-		
+	choose_chat(client_socket, received_message_queue, receiving_status_message_queue, server_address)
 
 
 if __name__ == '__main__':
