@@ -79,22 +79,23 @@ def run_server(address, port):
 			address, message = message_from_queue[0], message_from_queue[1]
 			address_str = str(address[0]) + ':' + str(address[1])
 
-			print('\nMessage from ' + address_str + ': ' + message)
+			print('\n\n\nMessage from ' + address_str + ': ' + message)
 
-			# if new user
+			# if new client
 			if address not in user_addresses.values():
 				if message not in user_addresses.keys():
 					user_addresses.update({message: address})
 					user_names.update({address_str: message})
 					send_message(server_socket, 'valid', receiving_status_message_queue, address)
 
+					print('\nAfter login user')
 					print('user names:', user_addresses)
 					print('user addresses:', user_names)
 				else:
 					send_message(server_socket, 'not valid', receiving_status_message_queue, address)
 
-			# if existing user is not in any chats
-			elif address_str not in user_chat.keys() and user_names[address_str] not in private_chats.keys():
+			# if existing client is not in any chats
+			elif address_str not in user_chat.keys() and user_names[address_str] not in private_chats.keys() and user_names[address_str] not in user_chat.keys():
 
 				try:
 					chat_type, chat_name = int(message.split(':')[0]), message.split(':')[1]
@@ -105,8 +106,9 @@ def run_server(address, port):
 
 						rooms[chat_name].append(address)
 						user_chat[user_names[address_str]] = chat_name
-						send_message(server_socket, 'You are in the chat room ' + chat_name + '!', receiving_status_message_queue, address)
+						send_message(server_socket, 'You are in the chat ' + chat_name + '!', receiving_status_message_queue, address)
 
+						print('\nAfter adding client to room')
 						print('rooms:', rooms)
 						print('user_chats:', user_chat)
 
@@ -140,6 +142,7 @@ def run_server(address, port):
 								print('User client like to chat with doesnt wait for any client connection')
 								send_message(server_socket, 'You are waiting for another side connection', receiving_status_message_queue, address)
 
+							print('\nAfter adding client to private chat')
 							print('private chats:', private_chats)
 						else:
 							raise Exception
@@ -151,10 +154,52 @@ def run_server(address, port):
 				except Exception as e:
 					send_message(server_socket, 'not valid', receiving_status_message_queue, address)
 
+			# if waiting messages from client
+			else:
+				# if client in private chat
+				if user_names[address_str] in private_chats.keys():
+					send_message(server_socket, 'sent', receiving_status_message_queue, address)
+
+					if message != 'quit chat' and message != 'logout':
+						receiver_address = user_addresses[private_chats[user_names[address_str]]]
+						send_message(server_socket, user_names[address_str] + ' >> ' + message, receiving_status_message_queue, receiver_address)
+
+					elif message == 'quit chat' or message == 'logout':
+						receiver_address = user_addresses[private_chats[user_names[address_str]]]
+						send_message(server_socket, 'chat was closed', receiving_status_message_queue, address)
+						send_message(server_socket, 'chat was closed', receiving_status_message_queue, receiver_address)
+
+						# delete this private chat
+						del private_chats[user_names[address_str]]
+						del private_chats[user_names[str(receiver_address[0]) + ':' + str(receiver_address[1])]]
+
+						print('\nAfter deleting client from private chat')
+						print('private chats:', private_chats)
+
+				# if client in a room
+				elif user_names[address_str] in user_chat.keys():
+					send_message(server_socket, 'sent', receiving_status_message_queue, address)
+
+					if message != 'quit chat' and message != 'logout':
+						name_of_chat = user_chat[user_names[address_str]]
+						receiver_addresses = [receiver_address for receiver_address in rooms[name_of_chat] if receiver_address != address]
+						for receiver_address in receiver_addresses:
+							send_message(server_socket, user_names[address_str] + ' >> ' + message, receiving_status_message_queue, receiver_address)
+
+					elif message == 'quit chat' or message == 'logout':
+						send_message(server_socket, 'chat was closed', receiving_status_message_queue, address)
+
+						name_of_chat = user_chat[user_names[address_str]]
+						rooms[name_of_chat].remove(address)
+						del user_chat[user_names[address_str]]
+
+						print('\nAfter deleting client from room')
+						print('rooms: ', rooms)
+						print('user_chat: ', user_chat)
 
 
 if __name__ == '__main__':
-	UDP_SERVER_IP_ADDRESS = '192.168.1.57'
+	UDP_SERVER_IP_ADDRESS = '127.0.0.1'
 	UDP_SERVER_PORT = 5001
 
 	run_server(UDP_SERVER_IP_ADDRESS, UDP_SERVER_PORT)
