@@ -67,7 +67,7 @@ def receive_message(socket, received_message_queue, receiving_status_message_que
 
 
 def choose_name(client_socket, received_message_queue, receiving_status_message_queue):
-	name = input('Please type your name: ')
+	name = input('\nPlease type your name: ')
 	send_message(client_socket, name, receiving_status_message_queue)
 
 	# get the answer from server is typed name valid
@@ -120,23 +120,30 @@ def choose_chat(client_socket, received_message_queue, receiving_status_message_
 
 
 def recieve_message_from_chat(received_message_queue):
+	global STATE
+
 	while True:
 		if not received_message_queue.empty():
 			message = received_message_queue.get()
 
-			if message != 'chat was closed':
+			if message != 'chat was closed' and message != 'client was logout':
 				print(message)
-			else:
+			elif message == 'chat was closed':
 				print('You or someone left the chat so it was closed. Type something to choose another chat.')
-
-				global STATE
 				STATE = WAITING_FOR_CHAT_NAME
+
+				return True
+			else:
+				print('You were logout. Type something to login again.')
+				STATE = WAITING_FOR_NAME
 
 				return True
 
 
+
 def comunicate_in_chat(client_socket, name, receiving_status_message_queue, received_message_queue):
-	threading.Thread(target=recieve_message_from_chat, args=(received_message_queue, )).start()
+	recieve_message_from_chat_thread = threading.Thread(target=recieve_message_from_chat, args=(received_message_queue, ))
+	recieve_message_from_chat_thread.start()
 
 	global STATE
 
@@ -147,6 +154,7 @@ def comunicate_in_chat(client_socket, name, receiving_status_message_queue, rece
 		if STATE == COMMUNICATION_IN_CHAT:
 			send_message(client_socket, message, receiving_status_message_queue)
 		else:
+			recieve_message_from_chat_thread._stop()
 			break
 
 
@@ -165,11 +173,11 @@ def run_client(server_address):
 			name = choose_name(client_socket, received_message_queue, receiving_status_message_queue)
 
 		# if client has to choose chat
-		if STATE == WAITING_FOR_CHAT_NAME:
+		elif STATE == WAITING_FOR_CHAT_NAME:
 			choose_chat(client_socket, received_message_queue, receiving_status_message_queue)
 
 		# if client communicate in chat
-		if STATE == COMMUNICATION_IN_CHAT:
+		elif STATE == COMMUNICATION_IN_CHAT:
 			comunicate_in_chat(client_socket, name, receiving_status_message_queue, received_message_queue)
 
 
